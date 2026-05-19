@@ -96,8 +96,7 @@ int main(int argc, char* argv[])
 
     int iter = 0;
     auto start = std::chrono::steady_clock::now();
-    #pragma acc data copyin(local_grid[0:ny*nx]) copy(local_newgrid[0:ny*nx])
-    {
+
         for (;;) {
             double maxdiff = 0.0;   
             iter++;
@@ -126,7 +125,7 @@ int main(int argc, char* argv[])
             max_error = maxdiff;
             if (maxdiff < eps) break;
         }
-    }
+
     auto end = std::chrono::steady_clock::now();
     std::cout<<"error: "<<max_error<<std::endl;
     std::chrono::duration<double> elapsed = end - start;
