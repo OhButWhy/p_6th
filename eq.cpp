@@ -105,10 +105,10 @@ int main(int argc, char* argv[])
             #pragma acc kernels loop collapse(2) reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) { // Update interior points
                 for (int j = 1; j < nx - 1; j++) {
-                    local_newgrid[IND(i, j)] =
-                    (local_grid[IND(i - 1, j)] + local_grid[IND(i + 1, j)] +
-                    local_grid[IND(i, j - 1)] + local_grid[IND(i, j + 1)]) * 0.25;
-                    int ind = IND(i, j);
+                    local_newgrid[i * nx + j] =
+                    (local_grid[(i-1) * nx + j] + local_grid[(i+1) * nx + j] +
+                    local_grid[i * nx + j - 1] + local_grid[i * nx + j + 1]) * 0.25;
+                    int ind = i * nx + j;
                     maxdiff = fmax(maxdiff, fabs(local_grid[ind] - local_newgrid[ind]));
                     
 
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
             #pragma acc kernels loop collapse(2)
             for (int i = 0; i < ny; i++) {
                 for (int j = 0; j < nx; j++) {
-                    local_grid[IND(i,j)] = local_newgrid[IND(i,j)];
+                    local_grid[i * nx + j] = local_newgrid[i * nx + j];
                 }
             }
             max_error = maxdiff;
