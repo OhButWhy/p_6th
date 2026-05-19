@@ -102,8 +102,9 @@ int main(int argc, char* argv[])
             double maxdiff = 0.0;   
             iter++;
             if (iter > max_iter) break;
-            #pragma acc kernels loop collapse(2) reduction(max:maxdiff)
+            #pragma acc kernels loop reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) { // Update interior points
+                #pragma acc loop reduction(max:maxdiff)
                 for (int j = 1; j < nx - 1; j++) {
                     local_newgrid[i * nx + j] =
                     (local_grid[(i-1) * nx + j] + local_grid[(i+1) * nx + j] +
@@ -115,8 +116,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            #pragma acc kernels loop collapse(2)
+            #pragma acc kernels loop
             for (int i = 0; i < ny; i++) {
+                #pragma acc loop
                 for (int j = 0; j < nx; j++) {
                     local_grid[i * nx + j] = local_newgrid[i * nx + j];
                 }
