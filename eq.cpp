@@ -5,6 +5,9 @@
 #include <iostream>
 #include <chrono>
 #include <boost/program_options.hpp>
+#ifdef _OPENACC
+#include <openacc.h>
+#endif
 namespace po = boost::program_options;
 
 #define EPS 0.001
@@ -50,10 +53,8 @@ int main(int argc, char* argv[])
         std::cout << desc << std::endl;
     return 0;
 }
-
-    int k = 0;
     double max_error = 0;
-    auto start = std::chrono::steady_clock::now();
+    
     int ny = N;
     int nx = N;
     int left_top = 10;
@@ -63,11 +64,9 @@ int main(int argc, char* argv[])
     std::vector<double> local_grid(ny * nx, 0.0);
     std::vector<double> local_newgrid(ny * nx, 0.0);
 
-    double dx = 1.0 / (nx - 1.0);
-
     // Initialize top border
-    double interpolation_value_top = (double)(right_top - left_top) / (double)nx;
-    double interpolation_value_botton = (right_bottom - left_bottom) / (double)nx;
+    double interpolation_value_top = (double)(right_top - left_top) / (double)(nx-1);
+    double interpolation_value_botton = (right_bottom - left_bottom) / (double)(nx-1);
     for (int j = 0; j < nx - 1; j++) {
         int ind = IND(ny - 1, j);
        
@@ -82,8 +81,8 @@ int main(int argc, char* argv[])
     // }
 
     // initialize sides
-    double interpolation_value_l = (left_bottom - left_top) / (double)ny;
-    double interpolation_value_r = (right_bottom - right_top) / (double)ny;
+    double interpolation_value_l = (left_bottom - left_top) / (double)(ny-1);
+    double interpolation_value_r = (right_bottom - right_top) / (double)(ny-1);
     for (int j = 0; j < ny - 1; j++) {
         int ind = IND(j, 0);
         int ind2 = IND(j, nx - 1);
@@ -96,28 +95,38 @@ int main(int argc, char* argv[])
     // std::cout<<interpolation_value_top<<" "<<interpolation_value_botton<<std::endl;
 
     int iter = 0;
-    for (;;) {
-        double maxdiff = 0.0;
-        iter++;
-        if (iter > max_iter) break;
-        for (int i = 1; i < ny - 1; i++) { // Update interior points
-            for (int j = 1; j < nx - 1; j++) {
-                local_newgrid[IND(i, j)] =
-                (local_grid[IND(i - 1, j)] + local_grid[IND(i + 1, j)] +
-                local_grid[IND(i, j - 1)] + local_grid[IND(i, j + 1)]) * 0.25;
-                int ind = IND(i, j);
-                maxdiff = fmax(maxdiff, fabs(local_grid[ind] - local_newgrid[ind]));
-                
+    auto start = std::chrono::steady_clock::now();
+    #pragma acc data copyin(local_grid[0:ny*nx]) copy(local_newgrid[0:ny*nx])
+    {
+        for (;;) {
+            double maxdiff = 0.0;   
+            iter++;
+            if (iter > max_iter) break;
+            #pragma acc kernels loop collapse(2) reduction(max:maxdiff)
+            for (int i = 1; i < ny - 1; i++) { // Update interior points
+                for (int j = 1; j < nx - 1; j++) {
+                    local_newgrid[IND(i, j)] =
+                    (local_grid[IND(i - 1, j)] + local_grid[IND(i + 1, j)] +
+                    local_grid[IND(i, j - 1)] + local_grid[IND(i, j + 1)]) * 0.25;
+                    int ind = IND(i, j);
+                    maxdiff = fmax(maxdiff, fabs(local_grid[ind] - local_newgrid[ind]));
+                    
 
+                }
             }
-        }
 
-        local_grid = local_newgrid;
-        max_error = maxdiff;
-        if (maxdiff < eps) break;
+            #pragma acc kernels loop collapse(2)
+            for (int i = 0; i < ny; i++) {
+                for (int j = 0; j < nx; j++) {
+                    local_grid[IND(i,j)] = local_newgrid[IND(i,j)];
+                }
+            }
+            max_error = maxdiff;
+            if (maxdiff < eps) break;
+        }
     }
-    std::cout<<"error: "<<max_error<<std::endl;
     auto end = std::chrono::steady_clock::now();
+    std::cout<<"error: "<<max_error<<std::endl;
     std::chrono::duration<double> elapsed = end - start;
     std::cout<<"time: "<<elapsed.count()<<"\niterations: "<<iter<<std::endl;
 
