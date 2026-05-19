@@ -61,8 +61,8 @@ int main(int argc, char* argv[])
     int left_bottom = 20;
     int right_top = 20;
     int right_bottom = 30;
-    std::vector<double> local_grid(ny * nx, 0.0);
-    std::vector<double> local_newgrid(ny * nx, 0.0);
+    double* local_grid = new double[ny * nx]();
+    double* local_newgrid = new double[ny * nx]();
 
     // Initialize top border
     double interpolation_value_top = (double)(right_top - left_top) / (double)(nx-1);
@@ -142,5 +142,7 @@ int main(int argc, char* argv[])
         }
     }
     
+    delete[] local_grid;
+    delete[] local_newgrid;
     return 0;
     }
