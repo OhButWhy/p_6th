@@ -4,7 +4,7 @@ echo "Benchmark started at $(date)" > progress.log
 
 SIZES_ONE=(128 256 512)
 SIZES_MULTI=(128 256 512 1024)
-RUNS=70
+RUNS=10
 ONE_CORE="./smth_cpu_one"
 MULTI_CORE="./smth_cpu_multi"
 
