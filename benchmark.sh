@@ -1,8 +1,9 @@
 #!/bin/bash
 
-SIZES=(128 256 512 1024)
+SIZES_ONE=(128 256 512)
+SIZES_MULTI=(128 256 512 1024)
 
-RUNS=100
+RUNS=70
 
 ONE_CORE="./smth_cpu_one"
 MULTI_CORE="./smth_cpu_multi"
@@ -20,20 +21,19 @@ run_bench() {
         echo "  Run $i: time=$time_val, iter=$iter_val, error=$error_val"
         times+=($time_val)
     done
-    # Подсчёт среднего и стандартного отклонения (awk)
     mean=$(printf '%s\n' "${times[@]}" | awk '{sum+=$1} END {print sum/NR}')
-    stddev=$(printf '%s\n' "${times[@]}" | awk -v mean=$mean '{sumsq+=($1-mean)^2} END {print sqrt(sumsq/NR)}')
+    stddev=$(printf '%s\n' "${times[@]}" | awk -v mean=$mean '{sumsq+=($1-mean)^2} END {print sqrt(sumsq/(NR-1))}')
     echo "  Mean time: $mean, stddev: $stddev"
     echo "  Iterations: $iter_val (should be consistent), error: $error_val"
     echo "---"
 }
 
 echo "===== CPU onecore ====="
-for size in "${SIZES[@]}"; do
+for size in "${SIZES_ONE[@]}"; do
     run_bench "$ONE_CORE" $size
 done
 
 echo "===== CPU multicore ====="
-for size in "${SIZES[@]}"; do
+for size in "${SIZES_MULTI[@]}"; do
     run_bench "$MULTI_CORE" $size
 done
