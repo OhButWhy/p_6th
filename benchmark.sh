@@ -2,7 +2,7 @@
 # Добавьте в самое начало скрипта
 echo "Benchmark started at $(date)" > progress.log
 
-SIZES_ONE=(128 256 512)
+SIZES_ONE=(1024)
 SIZES_MULTI=(128 256 512 1024)
 RUNS=10
 ONE_CORE="./smth_cpu_one"
