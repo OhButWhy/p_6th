@@ -101,19 +101,14 @@ int main(int argc, char* argv[])
             double maxdiff = 0.0;   
             iter++;
             if (iter > max_iter) break;
-            #pragma acc kernels loop
+            #pragma acc kernels loop reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
                 for (int j = 1; j < nx - 1; j++) {
                     local_newgrid[i * nx + j] = (local_grid[(i-1)*nx + j] + local_grid[(i+1)*nx + j] +
                                                 local_grid[i*nx + j-1] + local_grid[i*nx + j+1]) * 0.25;
-                }
-            }
-            // Вычисляем maxdiff на CPU
-            maxdiff = 0.0;
-            for (int i = 1; i < ny - 1; i++) {
-                for (int j = 1; j < nx - 1; j++) {
                     int ind = i * nx + j;
-                    double diff = fabs(local_grid[ind] - local_newgrid[ind]);
+                    double diff = local_grid[ind] - local_newgrid[ind];
+                    if (diff < 0) diff = -diff;
                     if (diff > maxdiff) maxdiff = diff;
                 }
             }
