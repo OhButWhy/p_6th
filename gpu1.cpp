@@ -104,13 +104,13 @@ int main(int argc, char* argv[])
             iter++;
             if (iter > max_iter) break;
 
-            #pragma acc parallel loop gang reduction(max:maxdiff)
+            #pragma acc parallel loop gang vector_length(256) reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
-                #pragma acc loop vector(256) reduction(max:maxdiff)
+                #pragma acc loop reduction(max:maxdiff)
                 for (int j = 1; j < nx - 1; j++) {
                     int ind = i * nx + j;
                     local_newgrid[ind] = (local_grid[ind - nx] + local_grid[ind + nx] +
-                                          local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
+                                        local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
                     double diff = local_grid[ind] - local_newgrid[ind];
                     if (diff < 0) diff = -diff;
                     if (diff > maxdiff) maxdiff = diff;
