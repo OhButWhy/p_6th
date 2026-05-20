@@ -1,8 +1,0 @@
-Benchmark started at Wed May 20 13:49:09 UTC 2026
-===== CPU multicore =====
-Running ./smth_cpu_multi with size 128
-  Starting run 1 at Wed May 20 13:49:09 UTC 2026
-  Run 1: time=423.015, iter=30074, error=9.9998e-07
-  Starting run 2 at Wed May 20 13:56:12 UTC 2026
-  Run 2: time=481.522, iter=30074, error=9.9998e-07
-  Starting run 3 at Wed May 20 14:04:13 UTC 2026
