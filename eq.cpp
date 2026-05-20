@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <fstream>
+#include <string>
 #include <boost/program_options.hpp>
 #ifdef _OPENACC
 #include <openacc.h>
@@ -15,18 +17,35 @@ namespace po = boost::program_options;
 #define SIZE 10
 #define IND(i, j) ((i) * nx + (j))
 
+static bool write_matrix_text(const std::string& path, const double* data, int n)
+{
+    std::ofstream out(path);
+    if (!out) return false;
+    out << n << '\n';
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            out << data[i * n + j];
+            if (j + 1 < n) out << ' ';
+        }
+        out << '\n';
+    }
+    return out.good();
+}
+
 
 int main(int argc, char* argv[])
 {
     int N = SIZE;
     double eps = EPS;
     int max_iter = MAX_ITER;
+    std::string output_path = "out.txt";
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
         ("size", po::value<int>(&N), "Grid size N (NxN)")
         ("eps", po::value<double>(&eps), "Tolerance")
-        ("iters", po::value<int>(&max_iter), "Maximum iterations");
+        ("iters", po::value<int>(&max_iter), "Maximum iterations")
+        ("output", po::value<std::string>(&output_path)->default_value(output_path), "Output file for resulting matrix (text)");
 
     po::variables_map vm;
     try {
@@ -116,9 +135,12 @@ int main(int argc, char* argv[])
                 }
             }
 
-            double* tmp = local_grid;
-            local_grid = local_newgrid;
-            local_newgrid = tmp;
+            #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid)
+            for (int i = 1; i < ny - 1; i++) {
+                for (int j = 1; j < nx - 1; j++) {
+                    local_grid[i * nx + j] = local_newgrid[i * nx + j];
+                }
+            }
 
             max_error = maxdiff;
             if (maxdiff < eps) break;
@@ -140,6 +162,14 @@ int main(int argc, char* argv[])
             std::cout<<std::endl;
         }
     }
+
+    if (!write_matrix_text(output_path, local_grid, N)) {
+        std::cerr << "Failed to write matrix to: " << output_path << std::endl;
+        delete[] local_grid;
+        delete[] local_newgrid;
+        return 2;
+    }
+    std::cout << "matrix_file: " << output_path << std::endl;
     
     delete[] local_grid;
     delete[] local_newgrid;

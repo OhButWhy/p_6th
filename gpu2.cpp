@@ -4,6 +4,9 @@
 #include <vector>
 #include <iostream>
 #include <chrono>
+#include <fstream>
+#include <string>
+#include <cstdint>
 #include <boost/program_options.hpp>
 #ifdef _OPENACC
 #include <openacc.h>
@@ -15,18 +18,33 @@ namespace po = boost::program_options;
 #define SIZE 10
 #define IND(i, j) ((i) * nx + (j))
 
+static bool write_matrix_binary(const std::string& path, const double* data, int n)
+{
+    std::ofstream out(path, std::ios::binary);
+    if (!out) return false;
+
+    const std::uint32_t magic = 0x31514845; // "EHQ1" (little-endian)
+    const std::uint32_t dim = static_cast<std::uint32_t>(n);
+    out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+    out.write(reinterpret_cast<const char*>(&dim), sizeof(dim));
+    out.write(reinterpret_cast<const char*>(data), sizeof(double) * static_cast<std::size_t>(n) * static_cast<std::size_t>(n));
+    return out.good();
+}
+
 
 int main(int argc, char* argv[])
 {
     int N = SIZE;
     double eps = EPS;
     int max_iter = MAX_ITER;
+    std::string output_path = "result_gpu2.bin";
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
         ("size", po::value<int>(&N), "Grid size N (NxN)")
         ("eps", po::value<double>(&eps), "Tolerance")
-        ("iters", po::value<int>(&max_iter), "Maximum iterations");
+        ("iters", po::value<int>(&max_iter), "Maximum iterations")
+        ("output", po::value<std::string>(&output_path)->default_value(output_path), "Output file for resulting matrix (binary: magic+N+doubles)");
 
     po::variables_map vm;
     try {
@@ -150,12 +168,10 @@ int main(int argc, char* argv[])
             src_is_grid = !src_is_grid;
         }
 
-        if (N == 10 || N == 13) {
-            if (result_is_grid) {
-                #pragma acc update self(local_grid[0:ny * nx])
-            } else {
-                #pragma acc update self(local_newgrid[0:ny * nx])
-            }
+        if (result_is_grid) {
+            #pragma acc update self(local_grid[0:ny * nx])
+        } else {
+            #pragma acc update self(local_newgrid[0:ny * nx])
         }
     }
 
@@ -174,6 +190,15 @@ int main(int argc, char* argv[])
             std::cout<<std::endl;
         }
     }
+
+    const double* final_grid = result_is_grid ? local_grid : local_newgrid;
+    if (!write_matrix_binary(output_path, final_grid, N)) {
+        std::cerr << "Failed to write matrix to: " << output_path << std::endl;
+        delete[] local_grid;
+        delete[] local_newgrid;
+        return 2;
+    }
+    std::cout << "matrix_file: " << output_path << std::endl;
     
     delete[] local_grid;
     delete[] local_newgrid;
