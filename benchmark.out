@@ -1,0 +1,5 @@
+nohup: ignoring input
+===== CPU multicore =====
+Running ./smth_cpu_multi with size 128
+  Run 1: time=423.015, iter=30074, error=9.9998e-07
+  Run 2: time=481.522, iter=30074, error=9.9998e-07

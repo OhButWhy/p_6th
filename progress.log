@@ -1,78 +1,8 @@
-Benchmark started at Wed May 20 09:56:35 UTC 2026
-===== CPU onecore =====
-Running ./smth_cpu_one with size 128
-  Starting run 1 at Wed May 20 09:56:35 UTC 2026
-  Run 1: time=1.42522, iter=30074, error=9.9998e-07
-  Starting run 2 at Wed May 20 09:56:36 UTC 2026
-  Run 2: time=1.41762, iter=30074, error=9.9998e-07
-  Starting run 3 at Wed May 20 09:56:38 UTC 2026
-  Run 3: time=1.42128, iter=30074, error=9.9998e-07
-  Starting run 4 at Wed May 20 09:56:39 UTC 2026
-  Run 4: time=1.5282, iter=30074, error=9.9998e-07
-  Starting run 5 at Wed May 20 09:56:41 UTC 2026
-  Run 5: time=1.45441, iter=30074, error=9.9998e-07
-  Starting run 6 at Wed May 20 09:56:42 UTC 2026
-  Run 6: time=1.40637, iter=30074, error=9.9998e-07
-  Starting run 7 at Wed May 20 09:56:44 UTC 2026
-  Run 7: time=1.41481, iter=30074, error=9.9998e-07
-  Starting run 8 at Wed May 20 09:56:45 UTC 2026
-  Run 8: time=1.43022, iter=30074, error=9.9998e-07
-  Starting run 9 at Wed May 20 09:56:47 UTC 2026
-  Run 9: time=1.4283, iter=30074, error=9.9998e-07
-  Starting run 10 at Wed May 20 09:56:48 UTC 2026
-  Run 10: time=1.5064, iter=30074, error=9.9998e-07
-  Mean time: 1.44328, stddev: 0.0413063
----
-Running ./smth_cpu_one with size 256
-  Starting run 1 at Wed May 20 09:56:50 UTC 2026
-  Run 1: time=19.8464, iter=102885, error=9.9993e-07
-  Starting run 2 at Wed May 20 09:57:10 UTC 2026
-  Run 2: time=20.0739, iter=102885, error=9.9993e-07
-  Starting run 3 at Wed May 20 09:57:30 UTC 2026
-  Run 3: time=20.3461, iter=102885, error=9.9993e-07
-  Starting run 4 at Wed May 20 09:57:50 UTC 2026
-  Run 4: time=20.0351, iter=102885, error=9.9993e-07
-  Starting run 5 at Wed May 20 09:58:10 UTC 2026
-  Run 5: time=20.2617, iter=102885, error=9.9993e-07
-  Starting run 6 at Wed May 20 09:58:31 UTC 2026
-  Run 6: time=20.2353, iter=102885, error=9.9993e-07
-  Starting run 7 at Wed May 20 09:58:51 UTC 2026
-  Run 7: time=20.6973, iter=102885, error=9.9993e-07
-  Starting run 8 at Wed May 20 09:59:12 UTC 2026
-  Run 8: time=20.3682, iter=102885, error=9.9993e-07
-  Starting run 9 at Wed May 20 09:59:32 UTC 2026
-  Run 9: time=20.0771, iter=102885, error=9.9993e-07
-  Starting run 10 at Wed May 20 09:59:52 UTC 2026
-  Run 10: time=20.1646, iter=102885, error=9.9993e-07
-  Mean time: 20.2106, stddev: 0.232227
----
-Running ./smth_cpu_one with size 512
-  Starting run 1 at Wed May 20 10:00:12 UTC 2026
-  Run 1: time=297.95, iter=339599, error=9.99984e-07
-  Starting run 2 at Wed May 20 10:05:10 UTC 2026
-  Run 2: time=297.405, iter=339599, error=9.99984e-07
-  Starting run 3 at Wed May 20 10:10:08 UTC 2026
-  Run 3: time=285.86, iter=339599, error=9.99984e-07
-  Starting run 4 at Wed May 20 10:14:54 UTC 2026
-  Run 4: time=300.401, iter=339599, error=9.99984e-07
-  Starting run 5 at Wed May 20 10:19:54 UTC 2026
-  Run 5: time=294.732, iter=339599, error=9.99984e-07
-  Starting run 6 at Wed May 20 10:24:49 UTC 2026
-  Run 6: time=282.832, iter=339599, error=9.99984e-07
-  Starting run 7 at Wed May 20 10:29:32 UTC 2026
-  Run 7: time=286.838, iter=339599, error=9.99984e-07
-  Starting run 8 at Wed May 20 10:34:19 UTC 2026
-  Run 8: time=293.507, iter=339599, error=9.99984e-07
-  Starting run 9 at Wed May 20 10:39:12 UTC 2026
-  Run 9: time=283.741, iter=339599, error=9.99984e-07
-  Starting run 10 at Wed May 20 10:43:56 UTC 2026
-  Run 10: time=287.99, iter=339599, error=9.99984e-07
-  Mean time: 291.126, stddev: 6.41155
----
+Benchmark started at Wed May 20 13:49:09 UTC 2026
 ===== CPU multicore =====
 Running ./smth_cpu_multi with size 128
-  Starting run 1 at Wed May 20 10:48:44 UTC 2026
-  Run 1: time=2271.54, iter=30074, error=9.9998e-07
-  Starting run 2 at Wed May 20 11:26:36 UTC 2026
-  Run 2: time=1702.06, iter=30074, error=9.9998e-07
-  Starting run 3 at Wed May 20 11:54:58 UTC 2026
+  Starting run 1 at Wed May 20 13:49:09 UTC 2026
+  Run 1: time=423.015, iter=30074, error=9.9998e-07
+  Starting run 2 at Wed May 20 13:56:12 UTC 2026
+  Run 2: time=481.522, iter=30074, error=9.9998e-07
+  Starting run 3 at Wed May 20 14:04:13 UTC 2026
