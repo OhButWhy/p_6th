@@ -4,7 +4,7 @@ echo "Benchmark started at $(date)" > progress.log
 
 SIZES_ONE=(1024)
 SIZES_MULTI=(128 256 512 1024)
-RUNS=10
+RUNS=5
 ONE_CORE="./smth_cpu_one"
 MULTI_CORE="./smth_cpu_multi"
 
@@ -27,11 +27,6 @@ run_bench() {
     echo "  Mean time: $mean, stddev: $stddev" | tee -a progress.log
     echo "---" | tee -a progress.log
 }
-
-echo "===== CPU onecore =====" | tee -a progress.log
-for size in "${SIZES_ONE[@]}"; do
-    run_bench "$ONE_CORE" $size
-done
 
 echo "===== CPU multicore =====" | tee -a progress.log
 for size in "${SIZES_MULTI[@]}"; do
