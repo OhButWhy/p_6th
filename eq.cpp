@@ -98,25 +98,24 @@ int main(int argc, char* argv[])
     auto start = std::chrono::steady_clock::now();
 
         for (;;) {
-            double maxdiff = 0.0;   
+            double maxdiff = 0.0;
             iter++;
             if (iter > max_iter) break;
-            #pragma acc kernels loop reduction(max:maxdiff)
+
+            #pragma acc parallel loop collapse(2) gang vector reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
-                #pragma acc loop independent reduction(max:maxdiff)
                 for (int j = 1; j < nx - 1; j++) {
-                    local_newgrid[i * nx + j] = (local_grid[(i-1)*nx + j] + local_grid[(i+1)*nx + j] +
-                                                local_grid[i*nx + j-1] + local_grid[i*nx + j+1]) * 0.25;
                     int ind = i * nx + j;
+                    local_newgrid[ind] = (local_grid[ind - nx] + local_grid[ind + nx] +
+                                          local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
                     double diff = local_grid[ind] - local_newgrid[ind];
                     if (diff < 0) diff = -diff;
                     if (diff > maxdiff) maxdiff = diff;
                 }
             }
 
-            #pragma acc kernels loop
+            #pragma acc parallel loop collapse(2) gang vector
             for (int i = 0; i < ny; i++) {
-                #pragma acc loop independent
                 for (int j = 0; j < nx; j++) {
                     local_grid[i * nx + j] = local_newgrid[i * nx + j];
                 }
