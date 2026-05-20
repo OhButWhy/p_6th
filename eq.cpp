@@ -97,12 +97,14 @@ int main(int argc, char* argv[])
     int iter = 0;
     auto start = std::chrono::steady_clock::now();
 
+    #pragma acc data copy(local_grid[0:ny * nx]) create(local_newgrid[0:ny * nx])
+    {
         for (;;) {
             double maxdiff = 0.0;
             iter++;
             if (iter > max_iter) break;
 
-            #pragma acc parallel loop collapse(2) gang vector reduction(max:maxdiff)
+            #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid) reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
                 for (int j = 1; j < nx - 1; j++) {
                     int ind = i * nx + j;
@@ -114,15 +116,14 @@ int main(int argc, char* argv[])
                 }
             }
 
-            #pragma acc parallel loop collapse(2) gang vector
-            for (int i = 0; i < ny; i++) {
-                for (int j = 0; j < nx; j++) {
-                    local_grid[i * nx + j] = local_newgrid[i * nx + j];
-                }
-            }
+            double* tmp = local_grid;
+            local_grid = local_newgrid;
+            local_newgrid = tmp;
+
             max_error = maxdiff;
             if (maxdiff < eps) break;
         }
+    }
 
     auto end = std::chrono::steady_clock::now();
     std::cout<<"error: "<<max_error<<std::endl;
