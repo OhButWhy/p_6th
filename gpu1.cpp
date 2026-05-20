@@ -116,12 +116,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            #pragma acc parallel loop collapse(2) present(local_grid, local_newgrid)
-            for (int i = 0; i < ny; i++) {
-                for (int j = 0; j < nx; j++) {
-                    local_grid[i * nx + j] = local_newgrid[i * nx + j];
-                }
-            }
+            double* tmp = local_grid;
+            local_grid = local_newgrid;
+            local_newgrid = tmp;
 
             max_error = maxdiff;
             if (maxdiff < eps) break;
