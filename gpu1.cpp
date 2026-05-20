@@ -97,29 +97,31 @@ int main(int argc, char* argv[])
     int iter = 0;
     auto start = std::chrono::steady_clock::now();
 
-    #pragma acc data copy(local_grid[0:ny * nx]) create(local_newgrid[0:ny * nx])
+    double* src = local_grid;
+    double* dst = local_newgrid;
+
+    #pragma acc data copy(src[0:ny * nx], dst[0:ny * nx])
     {
         for (;;) {
             double maxdiff = 0.0;
             iter++;
             if (iter > max_iter) break;
 
-            #pragma acc parallel loop collapse(2) gang vector reduction(max:maxdiff) async(1)
+            #pragma acc parallel loop collapse(2) gang vector present(src[0:ny * nx], dst[0:ny * nx]) reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
                 for (int j = 1; j < nx - 1; j++) {
                     int ind = i * nx + j;
-                    local_newgrid[ind] = (local_grid[ind - nx] + local_grid[ind + nx] +
-                                          local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
-                    double diff = local_grid[ind] - local_newgrid[ind];
+                    dst[ind] = (src[ind - nx] + src[ind + nx] +
+                                src[ind - 1] + src[ind + 1]) * 0.25;
+                    double diff = src[ind] - dst[ind];
                     if (diff < 0) diff = -diff;
                     if (diff > maxdiff) maxdiff = diff;
                 }
             }
-            #pragma acc wait(1)
 
-            double* tmp = local_grid;
-            local_grid = local_newgrid;
-            local_newgrid = tmp;
+            double* tmp = src;
+            src = dst;
+            dst = tmp;
 
             max_error = maxdiff;
             if (maxdiff < eps) break;
@@ -136,7 +138,7 @@ int main(int argc, char* argv[])
         for (int i = 0; i < nx; i++){
             for (int j = 0; j < ny; j++)
             {
-                std::cout<<local_grid[i * nx + j]<<' ';
+                std::cout<<src[i * nx + j]<<' ';
             }
             std::cout<<std::endl;
         }
