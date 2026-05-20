@@ -61,8 +61,8 @@ int main(int argc, char* argv[])
     int left_bottom = 20;
     int right_top = 20;
     int right_bottom = 30;
-    double* local_grid = new double[ny * nx]();
-    double* local_newgrid = new double[ny * nx]();
+    double* __restrict__ local_grid = new double[ny * nx]();
+    double* __restrict__ local_newgrid = new double[ny * nx]();
 
     // Initialize top border
     double interpolation_value_top = (double)(right_top - left_top) / (double)(nx-1);
