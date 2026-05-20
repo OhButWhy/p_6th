@@ -103,6 +103,7 @@ int main(int argc, char* argv[])
             if (iter > max_iter) break;
             #pragma acc kernels loop reduction(max:maxdiff)
             for (int i = 1; i < ny - 1; i++) {
+                #pragma acc loop independent reduction(max:maxdiff)
                 for (int j = 1; j < nx - 1; j++) {
                     local_newgrid[i * nx + j] = (local_grid[(i-1)*nx + j] + local_grid[(i+1)*nx + j] +
                                                 local_grid[i*nx + j-1] + local_grid[i*nx + j+1]) * 0.25;
@@ -115,6 +116,7 @@ int main(int argc, char* argv[])
 
             #pragma acc kernels loop
             for (int i = 0; i < ny; i++) {
+                #pragma acc loop independent
                 for (int j = 0; j < nx; j++) {
                     local_grid[i * nx + j] = local_newgrid[i * nx + j];
                 }
