@@ -56,6 +56,7 @@ add_openacc_flags(cpu_onecore host)
 add_executable(cpu_multicore eq.cpp)
 link_common(cpu_multicore)
 add_openacc_flags(cpu_multicore multicore)
+target_compile_definitions(cpu_multicore PRIVATE ACC_MULTICORE_DEFAULTS=1)
 
 add_executable(gpu_base eq.cpp)
 link_common(gpu_base)

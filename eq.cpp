@@ -40,7 +40,9 @@ static void configure_multicore_env_defaults(int n, int requested_cores)
     // NVHPC OpenACC multicore uses runtime-controlled thread counts.
     // Setting these here avoids requiring the user to export env vars manually.
     // Only set defaults if user didn't already set them.
-    if (std::getenv("ACC_NUM_CORES") != nullptr || std::getenv("OMP_NUM_THREADS") != nullptr) {
+    const bool env_has_acc = (std::getenv("ACC_NUM_CORES") != nullptr);
+    const bool env_has_omp = (std::getenv("OMP_NUM_THREADS") != nullptr);
+    if (requested_cores <= 0 && (env_has_acc || env_has_omp)) {
         return;
     }
 
@@ -51,15 +53,16 @@ static void configure_multicore_env_defaults(int n, int requested_cores)
     if (cores <= 0) {
         // Heuristic: small grids often lose to overhead on many threads.
         // Tune conservatively; user can override via --cores or env vars.
-        if (n <= 256) cores = 1;
-        else if (n <= 768) cores = 4;
+        if (n <= 512) cores = 1;
+        else if (n <= 1536) cores = 4;
         else cores = 8;
     }
     cores = std::max(1, std::min(cores, hw_threads));
 
     const std::string cores_str = std::to_string(cores);
-    setenv("ACC_NUM_CORES", cores_str.c_str(), 0);
-    setenv("OMP_NUM_THREADS", cores_str.c_str(), 0);
+    // overwrite=1: if user passed --cores we treat it as an explicit override.
+    setenv("ACC_NUM_CORES", cores_str.c_str(), 1);
+    setenv("OMP_NUM_THREADS", cores_str.c_str(), 1);
 
     // Affinity defaults: help avoid oversubscription/poor pinning on shared nodes.
     setenv("OMP_PROC_BIND", "true", 0);
@@ -123,7 +126,9 @@ int main(int argc, char* argv[])
     }
 
     // Apply runtime defaults early (before first OpenACC region).
+    #if defined(ACC_MULTICORE_DEFAULTS)
     configure_multicore_env_defaults(N, cores);
+    #endif
 
     if (verbose) {
         const char* acc_after = std::getenv("ACC_NUM_CORES");
@@ -131,6 +136,9 @@ int main(int argc, char* argv[])
         const char* bind_after = std::getenv("OMP_PROC_BIND");
         const char* places_after = std::getenv("OMP_PLACES");
         const char* dyn_after = std::getenv("OMP_DYNAMIC");
+        #if !defined(ACC_MULTICORE_DEFAULTS)
+        std::cerr << "note: ACC_MULTICORE_DEFAULTS is not enabled in this build\n";
+        #endif
         std::cerr << "env_after:  ACC_NUM_CORES=" << (acc_after ? acc_after : "<unset>")
                   << " OMP_NUM_THREADS=" << (omp_after ? omp_after : "<unset>")
                   << " OMP_PROC_BIND=" << (bind_after ? bind_after : "<unset>")
