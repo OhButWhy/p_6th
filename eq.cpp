@@ -64,6 +64,9 @@ static void configure_multicore_env_defaults(int n, int requested_cores)
     // Affinity defaults: help avoid oversubscription/poor pinning on shared nodes.
     setenv("OMP_PROC_BIND", "true", 0);
     setenv("OMP_PLACES", "cores", 0);
+
+    // Reduce runtime variability (some OpenMP runtimes change thread count dynamically).
+    setenv("OMP_DYNAMIC", "false", 0);
 }
 
 
@@ -74,6 +77,7 @@ int main(int argc, char* argv[])
     int max_iter = MAX_ITER;
     std::string output_path = "out.txt";
     int cores = 0;
+    bool verbose = false;
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
@@ -81,6 +85,7 @@ int main(int argc, char* argv[])
         ("eps", po::value<double>(&eps), "Tolerance")
         ("iters", po::value<int>(&max_iter), "Maximum iterations")
         ("cores", po::value<int>(&cores)->default_value(0), "CPU threads for -acc=multicore (0=auto default)")
+        ("verbose", po::bool_switch(&verbose), "Print effective ACC/OMP runtime settings")
         ("output", po::value<std::string>(&output_path)->default_value(output_path), "Output file for resulting matrix (text)");
 
     po::variables_map vm;
@@ -109,8 +114,30 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+    if (verbose) {
+        const char* acc_before = std::getenv("ACC_NUM_CORES");
+        const char* omp_before = std::getenv("OMP_NUM_THREADS");
+        std::cerr << "env_before: ACC_NUM_CORES=" << (acc_before ? acc_before : "<unset>")
+                  << " OMP_NUM_THREADS=" << (omp_before ? omp_before : "<unset>")
+                  << " hw_concurrency=" << std::thread::hardware_concurrency() << "\n";
+    }
+
     // Apply runtime defaults early (before first OpenACC region).
     configure_multicore_env_defaults(N, cores);
+
+    if (verbose) {
+        const char* acc_after = std::getenv("ACC_NUM_CORES");
+        const char* omp_after = std::getenv("OMP_NUM_THREADS");
+        const char* bind_after = std::getenv("OMP_PROC_BIND");
+        const char* places_after = std::getenv("OMP_PLACES");
+        const char* dyn_after = std::getenv("OMP_DYNAMIC");
+        std::cerr << "env_after:  ACC_NUM_CORES=" << (acc_after ? acc_after : "<unset>")
+                  << " OMP_NUM_THREADS=" << (omp_after ? omp_after : "<unset>")
+                  << " OMP_PROC_BIND=" << (bind_after ? bind_after : "<unset>")
+                  << " OMP_PLACES=" << (places_after ? places_after : "<unset>")
+                  << " OMP_DYNAMIC=" << (dyn_after ? dyn_after : "<unset>")
+                  << "\n";
+    }
     double max_error = 0;
     
     int ny = N;
