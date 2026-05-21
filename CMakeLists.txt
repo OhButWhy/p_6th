@@ -60,3 +60,18 @@ add_openacc_flags(gpu1 gpu)
 add_executable(gpu2 gpu2.cpp)
 link_common(gpu2)
 add_openacc_flags(gpu2 gpu)
+
+add_executable(gpu3 gpu3.cpp)
+link_common(gpu3)
+add_openacc_flags(gpu3 gpu)
+
+# Prefer pgc++ when available; user requested using pgc++/pgc for builds.
+if(DEFINED ENV{PGCXX})
+  set(PGCXX $ENV{PGCXX})
+else()
+  find_program(PGCXX pgc++)
+endif()
+if(PGCXX)
+  message(STATUS "Using pgc++ for targets: ${PGCXX}")
+  set(CMAKE_CXX_COMPILER ${PGCXX} CACHE STRING "PGC++ compiler" FORCE)
+endif()
