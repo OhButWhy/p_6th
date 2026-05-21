@@ -35,17 +35,18 @@ function(add_openacc_flags target mode)
   endif()
 
   if(mode STREQUAL "host")
-    target_compile_options(${target} PRIVATE -acc=host)
+    set(_acc_flag -acc=host)
   elseif(mode STREQUAL "multicore")
-    target_compile_options(${target} PRIVATE -acc=multicore)
+    set(_acc_flag -acc=multicore)
   elseif(mode STREQUAL "gpu")
-    target_compile_options(${target} PRIVATE -acc=gpu)
+    set(_acc_flag -acc=gpu)
   else()
     message(FATAL_ERROR "Unknown OpenACC mode: ${mode}")
   endif()
 
-  # Optional: keep compiler feedback handy.
-  target_compile_options(${target} PRIVATE -Minfo=accel)
+  # IMPORTANT: NVHPC links OpenACC runtime only if -acc=... is present at link stage.
+  target_compile_options(${target} PRIVATE ${_acc_flag} -Minfo=accel)
+  target_link_options(${target} PRIVATE ${_acc_flag})
 endfunction()
 
 add_executable(cpu_onecore eq.cpp)
