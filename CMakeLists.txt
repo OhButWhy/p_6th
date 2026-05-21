@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 
+# Force NVHPC pgc++ compiler path (user requested pgc++ always)
+set(CMAKE_CXX_COMPILER "/opt/nvidia/hpc_sdk/Linux_x86_64/23.11/compilers/bin/pgc++" CACHE STRING "PGC++ compiler" FORCE)
+
 project(p_6th LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -65,13 +68,4 @@ add_executable(gpu3 gpu3.cpp)
 link_common(gpu3)
 add_openacc_flags(gpu3 gpu)
 
-# Prefer pgc++ when available; user requested using pgc++/pgc for builds.
-if(DEFINED ENV{PGCXX})
-  set(PGCXX $ENV{PGCXX})
-else()
-  find_program(PGCXX pgc++)
-endif()
-if(PGCXX)
-  message(STATUS "Using pgc++ for targets: ${PGCXX}")
-  set(CMAKE_CXX_COMPILER ${PGCXX} CACHE STRING "PGC++ compiler" FORCE)
-endif()
+# Compiler is forced to pgc++ above.
