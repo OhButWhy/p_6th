@@ -62,6 +62,7 @@ int main(int argc, char* argv[])
     if (N <= 9) { std::cerr << "Grid size must be greater than 9." << std::endl; return 1; }
     if (eps <= 0) { std::cerr << "Tolerance must be positive." << std::endl; return 1; }
     if (max_iter <= 0) { std::cerr << "Maximum iterations must be positive." << std::endl; return 1; }
+    if (check_period <= 0) { std::cerr << "check must be positive." << std::endl; return 1; }
 
     int ny = N;
     int nx = N;
@@ -95,67 +96,69 @@ int main(int argc, char* argv[])
 
     #pragma acc data copyin(local_grid[0:ny * nx], local_newgrid[0:ny * nx])
     {
+        // Keep a single host scalar that async reductions write back into.
+        // We only synchronize and check it every check_period iterations.
+        double maxdiff = 0.0;
+
         for (;;) {
             iter++;
             if (iter > max_iter) break;
 
-            // Выполняем check_period итераций без синхронизации, редукции локально на GPU
-            for (int k = 0; k < check_period; ++k) {
-                double maxdiff = 0.0;
-                if (src_is_grid) {
-                    #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid) reduction(max:maxdiff)
-                    for (int i = 1; i < ny - 1; i++) {
-                        for (int j = 1; j < nx - 1; j++) {
-                            int ind = i * nx + j;
-                            local_newgrid[ind] = (local_grid[ind - nx] + local_grid[ind + nx] + local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
-                        }
-                    }
-                    result_is_grid = false;
-                } else {
-                    #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid) reduction(max:maxdiff)
-                    for (int i = 1; i < ny - 1; i++) {
-                        for (int j = 1; j < nx - 1; j++) {
-                            int ind = i * nx + j;
-                            local_grid[ind] = (local_newgrid[ind - nx] + local_newgrid[ind + nx] + local_newgrid[ind - 1] + local_newgrid[ind + 1]) * 0.25;
-                        }
-                    }
-                    result_is_grid = true;
-                }
-                src_is_grid = !src_is_grid;
-                // Не проверяем maxdiff здесь — делаем пакетную проверку ниже
-            }
+            maxdiff = 0.0;
 
-            // После K итераций: вытаскиваем минимальную информацию для проверки сходимости
-            // Мы обновим только один элемент (например, [1,1]) и уменьшенный DtoH — но проще: выполним редукцию на хосте через отдельный асинхронный редукционный кернел
-            double maxdiff = 0.0;
-            // Запускаем последний редукционный проход, который вычисляет maxdiff между текущими буферами
-            if (result_is_grid) {
-                #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid) reduction(max:maxdiff)
-                for (int i = 1; i < ny - 1; i++) {
-                    for (int j = 1; j < nx - 1; j++) {
-                        int ind = i * nx + j;
-                        double diff = local_grid[ind] - local_newgrid[ind];
-                        if (diff < 0) diff = -diff;
-                        if (diff > maxdiff) maxdiff = diff;
+            if (src_is_grid) {
+                #pragma acc parallel present(local_grid, local_newgrid) reduction(max:maxdiff) async(1) vector_length(256)
+                {
+                    #pragma acc loop gang
+                    for (int i = 1; i < ny - 1; i++) {
+                        #pragma acc loop vector
+                        for (int j = 1; j < nx - 1; j++) {
+                            int ind = i * nx + j;
+                            local_newgrid[ind] = (local_grid[ind - nx] + local_grid[ind + nx] +
+                                                  local_grid[ind - 1] + local_grid[ind + 1]) * 0.25;
+                            double diff = local_grid[ind] - local_newgrid[ind];
+                            if (diff < 0) diff = -diff;
+                            if (diff > maxdiff) maxdiff = diff;
+                        }
                     }
                 }
+                result_is_grid = false;
             } else {
-                #pragma acc parallel loop collapse(2) gang vector present(local_grid, local_newgrid) reduction(max:maxdiff)
-                for (int i = 1; i < ny - 1; i++) {
-                    for (int j = 1; j < nx - 1; j++) {
-                        int ind = i * nx + j;
-                        double diff = local_newgrid[ind] - local_grid[ind];
-                        if (diff < 0) diff = -diff;
-                        if (diff > maxdiff) maxdiff = diff;
+                #pragma acc parallel present(local_grid, local_newgrid) reduction(max:maxdiff) async(1) vector_length(256)
+                {
+                    #pragma acc loop gang
+                    for (int i = 1; i < ny - 1; i++) {
+                        #pragma acc loop vector
+                        for (int j = 1; j < nx - 1; j++) {
+                            int ind = i * nx + j;
+                            local_grid[ind] = (local_newgrid[ind - nx] + local_newgrid[ind + nx] +
+                                               local_newgrid[ind - 1] + local_newgrid[ind + 1]) * 0.25;
+                            double diff = local_newgrid[ind] - local_grid[ind];
+                            if (diff < 0) diff = -diff;
+                            if (diff > maxdiff) maxdiff = diff;
+                        }
                     }
                 }
+                result_is_grid = true;
             }
 
-            // Принудительная синхронизация редукции и копирование скаляра на хост
-            #pragma acc wait
-            max_error = maxdiff;
-            if (maxdiff < eps) break;
+            src_is_grid = !src_is_grid;
+
+            // Only synchronize/check periodically to reduce host-side overhead.
+            if (check_period == 1 || (iter % check_period) == 0) {
+                #pragma acc wait(1)
+                max_error = maxdiff;
+                if (maxdiff < eps) break;
+            }
         }
+
+        // Ensure last iteration finished before downloading output.
+        #pragma acc wait(1)
+        // If we exited due to max_iter, maxdiff holds the last computed value.
+        if (iter >= 1) {
+            max_error = maxdiff;
+        }
+
         // После выхода скопируем финальную матрицу
         if (result_is_grid) {
             #pragma acc update self(local_grid[0:ny * nx])

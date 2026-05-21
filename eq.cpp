@@ -6,8 +6,6 @@
 #include <chrono>
 #include <fstream>
 #include <string>
-#include <thread>
-#include <algorithm>
 #include <cstdlib>
 #include <boost/program_options.hpp>
 #ifdef _OPENACC
@@ -35,32 +33,15 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
     return out.good();
 }
 
-static void configure_multicore_env_defaults(int n, int requested_cores)
+static void configure_multicore_env(int requested_cores)
 {
     // NVHPC OpenACC multicore uses runtime-controlled thread counts.
     // Setting these here avoids requiring the user to export env vars manually.
-    // Only set defaults if user didn't already set them.
-    const bool env_has_acc = (std::getenv("ACC_NUM_CORES") != nullptr);
-    const bool env_has_omp = (std::getenv("OMP_NUM_THREADS") != nullptr);
-    if (requested_cores <= 0 && (env_has_acc || env_has_omp)) {
-        return;
-    }
+    // No heuristics: only apply if user explicitly requested a thread count.
+    if (requested_cores <= 0) return;
 
-    int hw_threads = static_cast<int>(std::thread::hardware_concurrency());
-    if (hw_threads <= 0) hw_threads = 1;
-
-    int cores = requested_cores;
-    if (cores <= 0) {
-        // Heuristic: small grids often lose to overhead on many threads.
-        // Tune conservatively; user can override via --cores or env vars.
-        if (n <= 512) cores = 1;
-        else if (n <= 1536) cores = 4;
-        else cores = 8;
-    }
-    cores = std::max(1, std::min(cores, hw_threads));
-
-    const std::string cores_str = std::to_string(cores);
-    // overwrite=1: if user passed --cores we treat it as an explicit override.
+    const std::string cores_str = std::to_string(requested_cores);
+    // overwrite=1: explicit override.
     setenv("ACC_NUM_CORES", cores_str.c_str(), 1);
     setenv("OMP_NUM_THREADS", cores_str.c_str(), 1);
 
@@ -80,15 +61,13 @@ int main(int argc, char* argv[])
     int max_iter = MAX_ITER;
     std::string output_path = "out.txt";
     int cores = 0;
-    bool verbose = false;
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
         ("size", po::value<int>(&N), "Grid size N (NxN)")
         ("eps", po::value<double>(&eps), "Tolerance")
         ("iters", po::value<int>(&max_iter), "Maximum iterations")
-        ("cores", po::value<int>(&cores)->default_value(0), "CPU threads for -acc=multicore (0=auto default)")
-        ("verbose", po::bool_switch(&verbose), "Print effective ACC/OMP runtime settings")
+        ("cores", po::value<int>(&cores)->default_value(0), "CPU threads for -acc=multicore (0=do not touch env)")
         ("output", po::value<std::string>(&output_path)->default_value(output_path), "Output file for resulting matrix (text)");
 
     po::variables_map vm;
@@ -117,35 +96,10 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-    if (verbose) {
-        const char* acc_before = std::getenv("ACC_NUM_CORES");
-        const char* omp_before = std::getenv("OMP_NUM_THREADS");
-        std::cerr << "env_before: ACC_NUM_CORES=" << (acc_before ? acc_before : "<unset>")
-                  << " OMP_NUM_THREADS=" << (omp_before ? omp_before : "<unset>")
-                  << " hw_concurrency=" << std::thread::hardware_concurrency() << "\n";
-    }
-
-    // Apply runtime defaults early (before first OpenACC region).
+    // Apply multicore runtime settings early (before first OpenACC region).
     #if defined(ACC_MULTICORE_DEFAULTS)
-    configure_multicore_env_defaults(N, cores);
+    configure_multicore_env(cores);
     #endif
-
-    if (verbose) {
-        const char* acc_after = std::getenv("ACC_NUM_CORES");
-        const char* omp_after = std::getenv("OMP_NUM_THREADS");
-        const char* bind_after = std::getenv("OMP_PROC_BIND");
-        const char* places_after = std::getenv("OMP_PLACES");
-        const char* dyn_after = std::getenv("OMP_DYNAMIC");
-        #if !defined(ACC_MULTICORE_DEFAULTS)
-        std::cerr << "note: ACC_MULTICORE_DEFAULTS is not enabled in this build\n";
-        #endif
-        std::cerr << "env_after:  ACC_NUM_CORES=" << (acc_after ? acc_after : "<unset>")
-                  << " OMP_NUM_THREADS=" << (omp_after ? omp_after : "<unset>")
-                  << " OMP_PROC_BIND=" << (bind_after ? bind_after : "<unset>")
-                  << " OMP_PLACES=" << (places_after ? places_after : "<unset>")
-                  << " OMP_DYNAMIC=" << (dyn_after ? dyn_after : "<unset>")
-                  << "\n";
-    }
     double max_error = 0;
     
     int ny = N;
