@@ -6,6 +6,9 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <thread>
+#include <algorithm>
+#include <cstdlib>
 #include <boost/program_options.hpp>
 #ifdef _OPENACC
 #include <openacc.h>
@@ -32,6 +35,37 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
     return out.good();
 }
 
+static void configure_multicore_env_defaults(int n, int requested_cores)
+{
+    // NVHPC OpenACC multicore uses runtime-controlled thread counts.
+    // Setting these here avoids requiring the user to export env vars manually.
+    // Only set defaults if user didn't already set them.
+    if (std::getenv("ACC_NUM_CORES") != nullptr || std::getenv("OMP_NUM_THREADS") != nullptr) {
+        return;
+    }
+
+    int hw_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (hw_threads <= 0) hw_threads = 1;
+
+    int cores = requested_cores;
+    if (cores <= 0) {
+        // Heuristic: small grids often lose to overhead on many threads.
+        // Tune conservatively; user can override via --cores or env vars.
+        if (n <= 256) cores = 1;
+        else if (n <= 768) cores = 4;
+        else cores = 8;
+    }
+    cores = std::max(1, std::min(cores, hw_threads));
+
+    const std::string cores_str = std::to_string(cores);
+    setenv("ACC_NUM_CORES", cores_str.c_str(), 0);
+    setenv("OMP_NUM_THREADS", cores_str.c_str(), 0);
+
+    // Affinity defaults: help avoid oversubscription/poor pinning on shared nodes.
+    setenv("OMP_PROC_BIND", "true", 0);
+    setenv("OMP_PLACES", "cores", 0);
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -39,12 +73,14 @@ int main(int argc, char* argv[])
     double eps = EPS;
     int max_iter = MAX_ITER;
     std::string output_path = "out.txt";
+    int cores = 0;
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
         ("size", po::value<int>(&N), "Grid size N (NxN)")
         ("eps", po::value<double>(&eps), "Tolerance")
         ("iters", po::value<int>(&max_iter), "Maximum iterations")
+        ("cores", po::value<int>(&cores)->default_value(0), "CPU threads for -acc=multicore (0=auto default)")
         ("output", po::value<std::string>(&output_path)->default_value(output_path), "Output file for resulting matrix (text)");
 
     po::variables_map vm;
@@ -72,6 +108,9 @@ int main(int argc, char* argv[])
         std::cout << desc << std::endl;
     return 0;
 }
+
+    // Apply runtime defaults early (before first OpenACC region).
+    configure_multicore_env_defaults(N, cores);
     double max_error = 0;
     
     int ny = N;

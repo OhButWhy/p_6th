@@ -57,6 +57,10 @@ add_executable(cpu_multicore eq.cpp)
 link_common(cpu_multicore)
 add_openacc_flags(cpu_multicore multicore)
 
+add_executable(gpu_base eq.cpp)
+link_common(gpu_base)
+add_openacc_flags(gpu_base gpu)
+
 add_executable(gpu1 gpu1.cpp)
 link_common(gpu1)
 add_openacc_flags(gpu1 gpu)
