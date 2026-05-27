@@ -23,8 +23,8 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
     std::ofstream out(path);
     if (!out) return false;
     out << n << '\n';
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
             out << data[i * n + j];
             if (j + 1 < n) out << ' ';
         }
@@ -35,21 +35,15 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
 
 static void configure_multicore_env(int requested_cores)
 {
-    // NVHPC OpenACC multicore uses runtime-controlled thread counts.
-    // Setting these here avoids requiring the user to export env vars manually.
-    // No heuristics: only apply if user explicitly requested a thread count.
     if (requested_cores <= 0) return;
 
     const std::string cores_str = std::to_string(requested_cores);
-    // overwrite=1: explicit override.
     setenv("ACC_NUM_CORES", cores_str.c_str(), 1);
     setenv("OMP_NUM_THREADS", cores_str.c_str(), 1);
 
-    // Affinity defaults: help avoid oversubscription/poor pinning on shared nodes.
     setenv("OMP_PROC_BIND", "true", 0);
     setenv("OMP_PLACES", "cores", 0);
 
-    // Reduce runtime variability (some OpenMP runtimes change thread count dynamically).
     setenv("OMP_DYNAMIC", "false", 0);
 }
 
@@ -96,7 +90,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-    // Apply multicore runtime settings early (before first OpenACC region).
     #if defined(ACC_MULTICORE_DEFAULTS)
     configure_multicore_env(cores);
     #endif
@@ -111,7 +104,6 @@ int main(int argc, char* argv[])
     double* __restrict__ local_grid = new double[ny * nx]();
     double* __restrict__ local_newgrid = new double[ny * nx]();
 
-    // Initialize top border
     double interpolation_value_top = (double)(right_top - left_top) / (double)(nx-1);
     double interpolation_value_botton = (right_bottom - left_bottom) / (double)(nx-1);
     for (int j = 0; j < nx - 1; j++) {
@@ -127,7 +119,6 @@ int main(int argc, char* argv[])
     //     local_newgrid[ind] = local_grid[ind] = left_bottom + j * interpolation_value;
     // }
 
-    // initialize sides
     double interpolation_value_l = (left_bottom - left_top) / (double)(ny-1);
     double interpolation_value_r = (right_bottom - right_top) / (double)(ny-1);
     for (int j = 0; j < ny - 1; j++) {

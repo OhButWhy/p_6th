@@ -23,8 +23,8 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
     std::ofstream out(path);
     if (!out) return false;
     out << n << '\n';
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
             out << data[i * n + j];
             if (j + 1 < n) out << ' ';
         }
@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     int N = SIZE;
     double eps = EPS;
     int max_iter = MAX_ITER;
-    int check_period = 10; // проверять сходимость каждые K итераций
+    int check_period = 10;
     std::string output_path = "out.txt";
 
     po::options_description desc("Allowed options");
@@ -96,8 +96,6 @@ int main(int argc, char* argv[])
 
     #pragma acc data copyin(local_grid[0:ny * nx], local_newgrid[0:ny * nx])
     {
-        // Keep a single host scalar that async reductions write back into.
-        // We only synchronize and check it every check_period iterations.
         double maxdiff = 0.0;
 
         for (;;) {
@@ -144,7 +142,6 @@ int main(int argc, char* argv[])
 
             src_is_grid = !src_is_grid;
 
-            // Only synchronize/check periodically to reduce host-side overhead.
             if (check_period == 1 || (iter % check_period) == 0) {
                 #pragma acc wait(1)
                 max_error = maxdiff;
@@ -152,14 +149,11 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Ensure last iteration finished before downloading output.
         #pragma acc wait(1)
-        // If we exited due to max_iter, maxdiff holds the last computed value.
         if (iter >= 1) {
             max_error = maxdiff;
         }
 
-        // После выхода скопируем финальную матрицу
         if (result_is_grid) {
             #pragma acc update self(local_grid[0:ny * nx])
         } else {

@@ -22,8 +22,8 @@ static bool write_matrix_text(const std::string& path, const double* data, int n
     std::ofstream out(path);
     if (!out) return false;
     out << n << '\n';
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
             out << data[i * n + j];
             if (j + 1 < n) out << ' ';
         }
@@ -83,7 +83,6 @@ int main(int argc, char* argv[])
     double* __restrict__ local_grid = new double[ny * nx]();
     double* __restrict__ local_newgrid = new double[ny * nx]();
 
-    // Initialize top border
     double interpolation_value_top = (double)(right_top - left_top) / (double)(nx-1);
     double interpolation_value_botton = (right_bottom - left_bottom) / (double)(nx-1);
     for (int j = 0; j < nx - 1; j++) {
@@ -98,8 +97,6 @@ int main(int argc, char* argv[])
     //     double interpolation_value = (right_bottom - left_bottom + 1) / (double)ny;
     //     local_newgrid[ind] = local_grid[ind] = left_bottom + j * interpolation_value;
     // }
-
-    // initialize sides
     double interpolation_value_l = (left_bottom - left_top) / (double)(ny-1);
     double interpolation_value_r = (right_bottom - right_top) / (double)(ny-1);
     for (int j = 0; j < ny - 1; j++) {
