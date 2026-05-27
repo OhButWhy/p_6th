@@ -1,5 +1,4 @@
 #!/bin/bash
-# Добавьте в самое начало скрипта
 echo "Benchmark started at $(date)" > progress.log
 
 SIZES_ONE=(1024)
